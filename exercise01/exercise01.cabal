@@ -8,5 +8,5 @@ library
   build-depends:    base
   hs-source-dirs:   src
   exposed-modules:  GADTs
-                  , Exercises
+                  , Exercises01
 

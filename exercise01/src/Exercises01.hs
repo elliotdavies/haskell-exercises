@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs #-}
-module Exercises where
+module Exercises01 where
 
 
 
@@ -17,20 +17,25 @@ instance Countable Bool where count x = if x then 1 else 0
 -- things.
 
 data CountableList where
-  -- ...
-
+  CNil  :: CountableList
+  CCons :: Countable a => a -> CountableList -> CountableList
 
 -- | b. Write a function that takes the sum of all members of a 'CountableList'
 -- once they have been 'count'ed.
 
 countList :: CountableList -> Int
-countList = error "Implement me!"
+countList CNil              = 0
+countList (CCons head tail) = count head + countList tail
 
 
 -- | c. Write a function that removes all elements whose count is 0.
 
 dropZero :: CountableList -> CountableList
-dropZero = error "Implement me!"
+dropZero (CCons head tail) =
+  if count head == 0 then
+    dropZero tail
+  else
+    CCons head (dropZero tail)
 
 
 -- | d. Can we write a function that removes all the things in the list of type
@@ -48,24 +53,29 @@ filterInts = error "Contemplate me!"
 -- | a. Write a list that can take /any/ type, without any constraints.
 
 data AnyList where
-  -- ...
+  ANil  :: AnyList
+  ACons :: a -> AnyList -> AnyList 
 
 -- | b. How many of the following functions can we implement for an 'AnyList'?
 
 reverseAnyList :: AnyList -> AnyList
-reverseAnyList = undefined
+reverseAnyList ANil = ANil
+reverseAnyList (ACons head tail) =
+  ACons (reverseAnyList tail) (ACons head ANil) -- Same idea as `reverse xs ++ [x]`
 
 filterAnyList :: (a -> Bool) -> AnyList -> AnyList
 filterAnyList = undefined
 
 countAnyList :: AnyList -> Int
-countAnyList = undefined
+countAnyList ANil = 0
+countAnyList (ACons _ tail) = 1 + countAnyList tail
 
 foldAnyList :: Monoid m => AnyList -> m
 foldAnyList = undefined
 
 isEmptyAnyList :: AnyList -> Bool
-isEmptyAnyList = undefined
+isEmptyAnyList ANil = True
+isEmptyAnyList _    = False
 
 instance Show AnyList where
   show = error "What about me?"
@@ -95,11 +105,20 @@ transformable2 = TransformWith (uncurry (++)) ("Hello,", " world!")
 -- | a. Which type variable is existential inside 'TransformableTo'? What is
 -- the only thing we can do to it?
 
+--    `input`, and the only thing we can do is provide a function and value
+--    whose types match up
+
 -- | b. Could we write an 'Eq' instance for 'TransformableTo'? What would we be
 -- able to check?
 
+--    Yes, but it would only be able to check for `Eq output`
+
 -- | c. Could we write a 'Functor' instance for 'TransformableTo'? If so, write
 -- it. If not, why not?
+
+instance Functor TransformableTo where
+--fmap :: (a -> b) -> TransformableTo a -> TransformableTo b
+  fmap f (TransformWith g i) = TransformWith (f . g) i
 
 
 
@@ -115,13 +134,19 @@ data EqPair where
 -- | a. There's one (maybe two) useful function to write for 'EqPair'; what is
 -- it?
 
+containsMatch :: EqPair -> Bool
+containsMatch (EqPair a b) = a == b
+
 -- | b. How could we change the type so that @a@ is not existential? (Don't
 -- overthink it!)
+
+data EqPair' a where
+  EqPair' :: Eq a => a -> a -> EqPair' a
 
 -- | c. If we made the change that was suggested in (b), would we still need a
 -- GADT? Or could we now represent our type as an ADT?
 
-
+--    We still need a GADT to express the Eq constraint
 
 
 
