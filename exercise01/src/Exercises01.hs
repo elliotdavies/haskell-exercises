@@ -364,7 +364,7 @@ parse _ = Nothing
 
 data TypeAlignedList a b where
   TNil  :: TypeAlignedList a a
-  TCons :: (b -> c) -> TypeAlignedList a b -> TypeAlignedList a c
+  TCons :: (c -> a) -> TypeAlignedList a b -> TypeAlignedList c b
 
 -- | b. Which types are existential?
 
@@ -374,4 +374,7 @@ data TypeAlignedList a b where
 -- not as difficult as you'd initially think.
 
 composeTALs :: TypeAlignedList b c -> TypeAlignedList a b -> TypeAlignedList a c
-composeTALs = error "todo"
+composeTALs TNil ab          = ab
+composeTALs bc TNil          = bc
+composeTALs bc (TCons ax xb) = TCons ax (composeTALs bc xb)
+
