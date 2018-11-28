@@ -127,7 +127,7 @@ instance Show (MaybeShowable 'True) where
 -- the type change? What would the constructor look like? Try to build this
 -- type - GHC should tell you exactly which extension you're missing.
 
-data Constrainable (c :: Constraint) where
+data Constrainable (con :: Constraint) where
   Constrainable :: c a => a -> Constrainable (c a) -- ConstraintKinds needed
 
 
@@ -227,13 +227,13 @@ data SBool (value :: Bool) where
 
 data SNat (value :: Nat) where
   SZero :: SNat Z
-  SSucc :: SNat (S n)
+  SSucc :: SNat n -> SNat (S n)
 
 -- | b. Write a function that extracts a vector's length at the type level:
 
 length :: Vector n a -> SNat n
 length VNil = SZero
-length (VCons _ _) = SSucc
+length (VCons _ t) = SSucc (Exercises04.length t)
 
 -- | c. Is 'Proxy' a singleton type?
 
@@ -287,7 +287,16 @@ myApp
 -- why? How could we make it more intuitive to write?
 
 
-data Prog -- TODO
+data Prog (fileOpen :: Bool) res where
+  OpenF  :: Prog 'False res -> Prog 'True res
+  WriteF :: String          -> Prog 'True res  -> Prog 'True res
+  ReadF  :: (String         -> Prog 'True res) -> Prog 'True res
+  CloseF :: Prog 'True res  -> Prog 'False res
+  ExitF  :: res             -> Prog o res
+
+myApp' :: Prog 'False Bool
+myApp'
+  = CloseF $ WriteF "HEY" $ OpenF $ ExitF True
 
 
 -- | EXTRA: write an interpreter for this program. Nothing to do with data
@@ -316,7 +325,7 @@ data Vector (n :: Nat) (a :: Type) where
 -- into Z and S cases. That's all the hint you need :)
 
 data SmallerThan (limit :: Nat) where
-  SmallZ :: SmallerThan limit
+  SmallZ :: SmallerThan (S n)
   SmallS :: SmallerThan n -> SmallerThan (S n)
 
 -- | b. Write the '(!!)' function:
@@ -325,11 +334,10 @@ data SmallerThan (limit :: Nat) where
 (!!) (VCons h t)  SmallZ    = h
 (!!) (VCons h t) (SmallS n) = (Exercises04.!!) t n
 
---    This works although is weirdly 1-indexed rather than 0
 
 -- | c. Write a function that converts a @SmallerThan n@ into a 'Nat'.
 
 convert :: SmallerThan n -> Nat
-convert (SmallS SmallZ) = Z
-convert (SmallS n)      = S (convert n)
+convert SmallZ     = Z
+convert (SmallS n) = S (convert n)
 
