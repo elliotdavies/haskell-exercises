@@ -1,9 +1,11 @@
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE GADTs          #-}
-{-# LANGUAGE KindSignatures #-}
-module Exercises where
+{-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE KindSignatures    #-}
+module Exercises04 where
 
-import Data.Kind (Type)
+import Data.Kind (Constraint, Type)
 import Data.Function ((&))
 
 
@@ -21,11 +23,27 @@ data IntegerMonoid = Sum | Product
 -- | a. Write a newtype around 'Integer' that lets us choose which instance we
 -- want.
 
+newtype MInt (m :: IntegerMonoid)
+  = MInt Integer
+
 -- | b. Write the two monoid instances for 'Integer'.
+
+instance Semigroup (MInt 'Sum) where
+  (MInt a) <> (MInt b) = MInt (a + b)
+
+instance Monoid (MInt 'Sum) where
+  mempty = MInt 0
+
+instance Semigroup (MInt 'Product) where
+  (MInt a) <> (MInt b) = MInt (a * b)
+
+instance Monoid (MInt 'Product) where
+  mempty = MInt 1
 
 -- | c. Why do we need @FlexibleInstances@ to do this?
 
-
+--    To be able to write specific instances without a type variable
+--    e.g. Monoid (MInt 'Sum) instead of Monoid (MInt a)
 
 
 
@@ -39,11 +57,18 @@ data Void -- No constructors!
 -- | a. If we promote this with DataKinds, can we produce any /types/ of kind
 -- 'Void'?
 
+--    Nope
+
 -- | b. What are the possible type-level values of kind 'Maybe Void'?
+
+class IsVoid (k :: Maybe Void)
+instance IsVoid ('Nothing)
 
 -- | c. Considering 'Maybe Void', and similar examples of kinds such as
 -- 'Either Void Bool', why do you think 'Void' might be a useful kind?
 
+--    To represent impossible types, just as the type Void represents
+--    impossible cases
 
 
 
@@ -57,12 +82,21 @@ data Void -- No constructors!
 data Nat = Z | S Nat
 
 data StringAndIntList (stringCount :: Nat) where
-  -- ...
+  SILNil     :: StringAndIntList Z
+  SILConsStr :: String  -> StringAndIntList a -> StringAndIntList (S a)
+  SILConsInt :: Integer -> StringAndIntList a -> StringAndIntList a
 
 -- | b. Update it to keep track of the count of strings /and/ integers.
 
+data StringAndIntList' (stringCount :: Nat) (intCount :: Nat)  where
+  SIL'Nil     :: StringAndIntList' Z Z
+  SIL'ConsStr :: String  -> StringAndIntList' s i -> StringAndIntList' (S s) i
+  SIL'ConsInt :: Integer -> StringAndIntList' s i -> StringAndIntList' s (S i)
+
 -- | c. What would be the type of the 'head' function?
 
+silHead :: StringAndIntList (S a) -> String
+silHead (SILConsStr str _) = str
 
 
 
@@ -79,17 +113,22 @@ data Showable where
 -- stores this fact in the type-level.
 
 data MaybeShowable (isShowable :: Bool) where
-  -- ...
+  JustShowable :: Show a => a -> MaybeShowable 'True
+  NotShowable  :: a -> MaybeShowable 'False
 
 -- | b. Write a 'Show' instance for 'MaybeShowable'. Your instance should not
 -- work unless the type is actually 'show'able.
+
+instance Show (MaybeShowable 'True) where
+  show (JustShowable a) = show a
 
 -- | c. What if we wanted to generalise this to @Constrainable@, such that it
 -- would work for any user-supplied constraint of kind 'Constraint'? How would
 -- the type change? What would the constructor look like? Try to build this
 -- type - GHC should tell you exactly which extension you're missing.
 
-
+data Constrainable (c :: Constraint) where
+  Constrainable :: c a => a -> Constrainable (c a) -- ConstraintKinds needed
 
 
 
@@ -105,28 +144,32 @@ data List a = Nil | Cons a (List a)
 -- having a list of types!
 
 data HList (types :: List Type) where
-  -- HNil  :: ...
-  -- HCons :: ...
+  HNil  :: HList 'Nil
+  HCons :: head -> HList tail -> HList ('Cons head tail)
 
 -- | b. Write a well-typed, 'Maybe'-less implementation for the 'tail' function
 -- on 'HList'.
 
+tail :: HList ('Cons h t) -> HList t
+tail (HCons h t) = t
+
 -- | c. Could we write the 'take' function? What would its type be? What would
 -- get in our way?
 
-
-
+--    The return type would depend on the number of items you wanted
 
 
 {- SIX -}
 
 -- | Here's a boring data type:
 
+{-
 data BlogAction
   = AddBlog
   | DeleteBlog
   | AddComment
   | DeleteComment
+-}
 
 -- | a. Two of these actions, 'DeleteBlog' and 'DeleteComment', should be
 -- admin-only. Extend the 'BlogAction' type (perhaps with a GADT...) to
@@ -134,17 +177,34 @@ data BlogAction
 -- Remember that, by switching on @DataKinds@, we have access to a promoted
 -- version of 'Bool'!
 
+data BlogAction (isAdmin :: Bool) where
+  AddBlog       :: BlogAction 'False
+  DeleteBlog    :: BlogAction 'True
+  AddComment    :: BlogAction 'False
+  DeleteComment :: BlogAction 'True
+
 -- | b. Write a 'BlogAction' list type that requires all its members to be
 -- the same "access level": "admin" or "non-admin".
 
--- data BlogActionList (isSafe :: ???) where
---   ...
+data BlogActionList (b :: Bool) where
+  BALNil  :: BlogActionList b
+  BALCons :: BlogAction b -> BlogActionList b -> BlogActionList b
 
 -- | c. Let's imagine that our requirements change, and 'DeleteComment' is now
 -- available to a third role: moderators. Could we use 'DataKinds' to introduce
 -- the three roles at the type-level, and modify our type to keep track of
 -- this?
 
+data BlogRole
+  = Admin
+  | Moderator
+  | User
+
+data BlogAction' (r :: BlogRole) where
+  AddBlog'       :: BlogAction' User
+  DeleteBlog'    :: BlogAction' Admin
+  AddComment'    :: BlogAction' User
+  DeleteComment' :: BlogAction' Moderator
 
 
 
@@ -166,17 +226,20 @@ data SBool (value :: Bool) where
 -- | a. Write a singleton type for natural numbers:
 
 data SNat (value :: Nat) where
-  -- ...
+  SZero :: SNat Z
+  SSucc :: SNat (S n)
 
 -- | b. Write a function that extracts a vector's length at the type level:
 
 length :: Vector n a -> SNat n
-length = error "Implement me!"
+length VNil = SZero
+length (VCons _ _) = SSucc
 
 -- | c. Is 'Proxy' a singleton type?
 
 data Proxy a = Proxy
 
+--    No, because it has multiple types for the same value
 
 
 
@@ -223,6 +286,10 @@ myApp
 -- write to the file unless it's open. This exercise is a bit brain-bending;
 -- why? How could we make it more intuitive to write?
 
+
+data Prog -- TODO
+
+
 -- | EXTRA: write an interpreter for this program. Nothing to do with data
 -- kinds, but a nice little problem.
 
@@ -249,7 +316,7 @@ data Vector (n :: Nat) (a :: Type) where
 -- into Z and S cases. That's all the hint you need :)
 
 data SmallerThan (limit :: Nat) where
-  -- ...
+--    TODO
 
 -- | b. Write the '(!!)' function:
 

@@ -8,5 +8,5 @@ library
   build-depends:    base
   hs-source-dirs:   src
   exposed-modules:  DataKinds
-                  , Exercises
+                  , Exercises04
 
