@@ -118,13 +118,21 @@ data Nested input output subinput suboutput
 -- | a. Write a GADT to existentialise @subinput@ and @suboutput@.
 
 data NestedX input output where
-  -- ...
+  NestedX :: i -> o -> si -> so -> NestedX i o
 
 -- | b. Write a function to "unpack" a NestedX. The user is going to have to
 -- deal with all possible @subinput@ and @suboutput@ types.
 
+unpackNested :: (forall si so. i -> o -> si -> so -> r) -> NestedX i o -> r
+unpackNested f (NestedX i o si so) = f i o si so
+
 -- | c. Why might we want to existentialise the subtypes away? What do we lose
 -- by doing so? What do we gain?
+
+--    We gain the ability to nest any type while preserving the same
+--    top-level input and output; otherwise we'd have to have a new
+--    NestedX for every nested component. But we lose the ability to
+--    keep track of what the sub-input and -output types are
 
 -- In case you're interested in where this actually turned up in the code:
 -- https://github.com/i-am-tom/purescript-panda/blob/master/src/Panda/Internal/Types.purs#L84
@@ -153,18 +161,29 @@ data Text = Text String
 -- | Uh oh! What's the type of our children? It could be either! In fact, it
 -- could probably be anything that implements the following class, allowing us
 -- to render our DSL to an HTML string:
-class Renderable component where render :: component -> String
+class Renderable component where
+  render :: component -> String
 
 -- | a. Write a type for the children.
 
+data HTML c
+  = HTML
+      { properties :: (String, String)
+      , children   :: Renderable c => [c]
+      }
+
 -- | b. What I'd really like to do when rendering is 'fmap' over the children
 -- with 'render'; what's stopping me? Fix it!
+
+mapChildren :: Renderable c => HTML c -> HTML String
+mapChildren (HTML p c) = HTML p (fmap render c)
 
 -- | c. Now that we're an established Haskell shop, we would /also/ like the
 -- option to render our HTML to a Shakespeare template to write to a file
 -- (http://hackage.haskell.org/package/shakespeare). How could we support this
 -- new requirement with minimal code changes?
 
+--    Probably easiest to add a new class function e.g. renderShakespeare
 
 
 
@@ -182,11 +201,28 @@ data MysteryBox a where
 -- | a. Knowing what we now know about RankNTypes, we can write an 'unwrap'
 -- function! Write the function, and don't be too upset if we need a 'Maybe'.
 
+unwrapBox :: (forall a b. a -> MysteryBox b -> r) -> MysteryBox c -> Maybe r
+unwrapBox f EmptyBox        = Nothing
+unwrapBox f (IntBox i x)    = Just $ f i x
+unwrapBox f (StringBox s x) = Just $ f s x
+unwrapBox f (BoolBox b x)   = Just $ f b x
+
 -- | b. Why do we need a 'Maybe'? What can we still not know?
+
+--    We don't know whether the box will be empty or not
 
 -- | c. Write a function that uses 'unwrap' to print the name of the next
 -- layer's constructor.
 
+printCtor :: MysteryBox a -> Maybe String
+printCtor = unwrapBox print'
+  where
+    print' :: a -> MysteryBox b -> String
+    print' x ctor = case ctor of
+      EmptyBox      -> "Empty"
+      IntBox _ _    -> "Int"
+      StringBox _ _ -> "String"
+      BoolBox _ _   -> "Bool"
 
 
 
@@ -204,7 +240,8 @@ data SNat (n :: Nat) where
 -- | We also saw that we could convert from an 'SNat' to a 'Nat':
 
 toNat :: SNat n -> Nat
-toNat = error "You should already know this one ;)"
+toNat SZ     = Z
+toNat (SS n) = S (toNat n)
 
 -- | How do we go the other way, though? How do we turn a 'Nat' into an 'SNat'?
 -- In the general case, this is impossible: the 'Nat' could be calculated from
@@ -220,8 +257,9 @@ toNat = error "You should already know this one ;)"
 -- | If you're looking for a property that you could use to test your function,
 -- remember that @fromNat x toNat === x@!
 
-
-
+fromNat :: Nat -> (forall n. SNat n -> r) -> r
+fromNat Z f     = f SZ
+fromNat (S n) f = fromNat n f -- ???
 
 
 {- EIGHT -}
@@ -235,3 +273,7 @@ data Vector (n :: Nat) (a :: Type) where
 -- | It would be nice to have a 'filter' function for vectors, but there's a
 -- problem: we don't know at compile time what the new length of our vector
 -- will be... but has that ever stopped us? Make it so!
+
+filterV :: (forall m. a -> (Bool, m))-> Vector n a -> Vector m a
+filterV f VNil         = VNil
+filterV f (VCons x xs) = if f x then VCons x xs else xs
