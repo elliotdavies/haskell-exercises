@@ -27,7 +27,7 @@ unpackExlistential (Cons a tail) f = f a : unpackExlistential tail f
 -- | b. Regardless of which type @r@ actually is, what can we say about the
 -- values in the resulting list?
 
---    Nothing interesting
+--    They must all be the same
 
 -- | c. How do we "get back" knowledge about what's in the list? Can we?
 
@@ -91,8 +91,7 @@ unpackTwoPairs
   -> r
 unpackTwoPairs f (EqPair a a') (EqPair b b') = f a a' b b'
 
---    Not quite sure what the question intended here, but given `Eq a`
---    and `Eq b` it should be possible to compare all the values
+--    No, because we can't know whether `a` and `b` are the same
 
 
 
@@ -118,13 +117,13 @@ data Nested input output subinput suboutput
 -- | a. Write a GADT to existentialise @subinput@ and @suboutput@.
 
 data NestedX input output where
-  NestedX :: i -> o -> si -> so -> NestedX i o
+  NestedX :: Nested i o si so -> NestedX i o
 
 -- | b. Write a function to "unpack" a NestedX. The user is going to have to
 -- deal with all possible @subinput@ and @suboutput@ types.
 
-unpackNested :: (forall si so. i -> o -> si -> so -> r) -> NestedX i o -> r
-unpackNested f (NestedX i o si so) = f i o si so
+unpackNested :: (forall si so. Nested i o si so -> r) -> NestedX i o -> r
+unpackNested f (NestedX n) = f n
 
 -- | c. Why might we want to existentialise the subtypes away? What do we lose
 -- by doing so? What do we gain?
@@ -166,17 +165,14 @@ class Renderable component where
 
 -- | a. Write a type for the children.
 
-data HTML c
-  = HTML
-      { properties :: (String, String)
-      , children   :: Renderable c => [c]
-      }
+data Children children where
+  Children :: Renderable cs => cs -> Children cs
 
 -- | b. What I'd really like to do when rendering is 'fmap' over the children
 -- with 'render'; what's stopping me? Fix it!
 
-mapChildren :: Renderable c => HTML c -> HTML String
-mapChildren (HTML p c) = HTML p (fmap render c)
+mapChildren :: Children cs -> String
+mapChildren (Children cs) = render cs
 
 -- | c. Now that we're an established Haskell shop, we would /also/ like the
 -- option to render our HTML to a Shakespeare template to write to a file
@@ -259,7 +255,7 @@ toNat (SS n) = S (toNat n)
 
 fromNat :: Nat -> (forall n. SNat n -> r) -> r
 fromNat Z f     = f SZ
-fromNat (S n) f = fromNat n f -- ???
+fromNat (S n) f = fromNat n (\prev -> f (SS prev))
 
 
 {- EIGHT -}
@@ -274,6 +270,6 @@ data Vector (n :: Nat) (a :: Type) where
 -- problem: we don't know at compile time what the new length of our vector
 -- will be... but has that ever stopped us? Make it so!
 
-filterV :: (forall m. a -> (Bool, m))-> Vector n a -> Vector m a
-filterV f VNil         = VNil
-filterV f (VCons x xs) = if f x then VCons x xs else xs
+-- filterV :: (forall m. a -> (Bool, m))-> Vector n a -> Vector m a
+-- filterV f VNil         = VNil
+-- filterV f (VCons x xs) = if f x then VCons x xs else xs
