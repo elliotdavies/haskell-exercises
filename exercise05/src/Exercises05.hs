@@ -270,6 +270,6 @@ data Vector (n :: Nat) (a :: Type) where
 -- problem: we don't know at compile time what the new length of our vector
 -- will be... but has that ever stopped us? Make it so!
 
--- filterV :: (forall m. a -> (Bool, m))-> Vector n a -> Vector m a
+-- filterV :: ???
 -- filterV f VNil         = VNil
 -- filterV f (VCons x xs) = if f x then VCons x xs else xs

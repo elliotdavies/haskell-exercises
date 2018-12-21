@@ -6,7 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-module Exercises where -- ^ This is starting to look impressive, right?
+module Exercises07 where -- ^ This is starting to look impressive, right?
 
 import Data.Kind (Constraint, Type)
 
