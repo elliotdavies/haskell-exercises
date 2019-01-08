@@ -9,9 +9,6 @@ through extensions one at a time, and build up a richer vocabulary for talking
 about Haskell programs, and look to move our assertions up into types, where
 they can be verified at compile time.
 
-I can't make any guarantees as to how quickly this repository will fill up, but
-I'm looking to publish at least a section per week.
-
 ---
 
 ## What this _isn't_.
@@ -37,3 +34,36 @@ concepts will turn up throughout as we dig deeper into the extensions.
 5. `RankNTypes`
 6. `TypeFamilies`
 7. `ConstraintKinds`
+8. `PolyKinds`
+9. `MultiParamTypeClasses`
+
+## Setup
+
+Assuming you have [Cabal](https://www.haskell.org/cabal/) or
+[Stack](https://docs.haskellstack.org/en/stable/README/) setup, you should be
+able to navigate to any of the `exercise*` directories, and run your usual
+commands:
+
+### Repl
+
+```
+$ stack repl
+$ cabal new-repl
+```
+
+### Build
+
+```
+$ stack build
+$ cabal new-build
+```
+
+It's going to make it a lot easier to iterate through the exercises if you
+`cabal install ghcid` or `stack install ghcid`. Just as above, once this is
+done, you can navigate to the exercise directory and run it with your preferred
+repl command:
+
+```
+$ ghcid -c "stack repl"
+$ ghcid -c "cabal new-repl"
+```
