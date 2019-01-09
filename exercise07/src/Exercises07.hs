@@ -63,16 +63,18 @@ foldConstrainedList f acc (CCons x xs) = foldConstrainedList f (f x acc) xs
 -- combines `Monoid a` and `Show a`. What other extension did you need to
 -- enable? Why?
 
-class (Monoid a, Eq a) => Constraints a
-instance (Monoid a, Eq a) => Constraints a
+class (Monoid a, Show a) => Constraints a
+instance (Monoid a, Show a) => Constraints a
 
-  -- Needed UndecidableInstances, because `Monoid a` and `Eq a` aren't
+  -- Needed UndecidableInstances, because `Monoid a` and `Show a` aren't
   -- 'smaller' than `Constraints a`
 
 -- | What can we now do with this constrained list that we couldn't before?
 -- There are two opportunities that should stand out!
 
-  -- Presumably we can fold it with mappend and mempty, and equate its items
+  -- Presumably we can replace its items with mempty, or show its items.
+  -- We can't use mappend because there's no guarantee two items use the
+  -- same monoid.
 
 
 
@@ -141,3 +143,5 @@ foldMapH :: Monoid m => (forall x. x -> m) -> HList xs -> m
 foldMapH f HNil         = mempty
 foldMapH f (HCons x xs) = f x <> foldMapH f xs
 
+  -- N.B. Trick here would have been to specify that all the items
+  -- in the HList have the same type as the input to the map function

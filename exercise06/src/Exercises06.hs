@@ -34,8 +34,8 @@ type family (x :: Nat) * (y :: Nat) where
   'Z     * y = 'Z
   ('S x) * y = (x * y) + y
 
---    UndecidableInstances, because the type family is now recursive and
---    there's no guarantee it will ever terminate
+--    UndecidableInstances, because the type family now calls out to another
+--    type family and GHC can't guarantee it will ever terminate
 
 data SNat (value :: Nat) where
   SZ :: SNat 'Z
