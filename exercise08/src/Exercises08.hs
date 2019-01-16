@@ -3,7 +3,7 @@
 {-# LANGUAGE PolyKinds     #-}
 {-# LANGUAGE TypeFamilies  #-}
 {-# LANGUAGE TypeOperators #-}
-module Exercises where
+module Exercises08 where
 
 import Data.Kind    (Constraint, Type)
 import GHC.TypeLits (Symbol)
@@ -23,10 +23,18 @@ type family All (c :: Type -> Constraint) (xs :: [Type]) :: Constraint where
 -- | a. Why does it have to be restricted to 'Type'? Can you make this more
 -- general?
 
+type family All' (c :: a -> Constraint) (xs :: [a]) :: Constraint where
+  All' c '[] = ()
+  All' c (x ': xs) = (c x, All' c xs)
+
 -- | b. Why does it have to be restricted to 'Constraint'? Can you make this
 -- more general? Why is this harder?
 
+type family All'' (c :: a -> b) (xs :: [a]) :: b where
+  All'' c '[] = ()
+  All'' c (x ': xs) = (c x, All'' c xs)
 
+  -- It wasn't any harder?
 
 
 
@@ -58,11 +66,19 @@ f (Tagged x) = putStrLn (show x <> " is important!")
 -- | a. Symbols are all well and good, but wouldn't it be nicer if we could
 -- generalise this?
 
+data Tagged' (name :: n) (a :: Type)
+  = Tagged' { runTagged' :: a }
+
 -- | b. Can we generalise 'Type'? If so, how? If not, why not?
+
+  -- No: this is a data constructor, so must build a Type that can be
+  -- represented at runtime
 
 -- | c. Often when we use the 'Tagged' type, we prefer a sum type (promoted
 -- with @DataKinds@) over strings. Why do you think this might be?
 
+  -- Same reason we prefer sum types at the value level: they are more restrictive
+  -- so the compiler can catch our mistakes, for example we can't typo them
 
 
 
@@ -76,12 +92,20 @@ data a :=: b where
 
 -- | a. What do you think the kind of (:=:) is?
 
+  -- Might have thought `k -> j -> Type` but GHC says `k -> k -> Type`
+  -- (with PolyKimds on), presumably because Refl requires two things
+  -- the same
+
 -- | b. Does @PolyKinds@ make a difference to this kind?
+
+  -- Without it we'd be restricted to `Type -> Type -> Type`
 
 -- | c. Regardless of your answer to part (b), is this the most general kind we
 -- could possibly give this constructor? If not (hint: it's not), what more
 -- general kind could we give it, and how would we tell this to GHC?
 
+data (a :: k) :==: (b :: k) where
+  Refl' :: a :==: b
 
 
 
@@ -108,7 +132,7 @@ data SBool (b :: Bool) where
   STrue  :: SBool 'True
   SFalse :: SBool 'False
 
--- type instance Sing ...
+type instance Sing (b :: Bool) = SBool b
 
 -- | b. Repeat the process for the @Nat@ kind. Again, if you're on the right
 -- lines, this is very nearly a copy-paste job!
@@ -119,6 +143,8 @@ data SNat (n :: Nat) where
   SZ :: SNat 'Z
   SS :: SNat n -> SNat ('S n)
 
+
+type instance Sing (n :: Nat) = SNat n
 
 
 
@@ -140,24 +166,27 @@ data Strings (n :: Nat) where
 -- n@ and an @SNat n@ into @Sigma Strings@, existentialising the actual length.
 --
 -- @
---   example :: [Sigma Strings]
---   example
---     = [ Sigma         SZ   SNil
---       , Sigma     (SS SZ)  ("hi" :> SNil)
---       , Sigma (SS (SS SZ)) ("hello" :> "world")
---       ]
+example :: [Sigma Strings]
+example
+  = [ Sigma         SZ   SNil
+    , Sigma     (SS SZ)  ("hi" :> SNil)
+    , Sigma (SS (SS SZ)) ("hello" :> ("world" :> SNil)) -- The SNil is missing here
+    ]
 -- @
 
 -- | a. Write this type's definition: If you run the above example, the
 -- compiler should do a lot of the work for you...
 
 data Sigma (f :: Nat -> Type) where
-  -- Sigma :: ... -> Sigma f
+  Sigma :: SNat n -> f n -> Sigma f
 
 -- | b. Surely, by now, you've guessed this question? Why are we restricting
 -- ourselves to 'Nat'? Don't we have some more general way to talk about
 -- singletons? The family of singletons? Any type within the family of
 -- singletons? Sing it with me! Generalise that type!
+
+data Sigma' (f :: k -> Type) where
+  Sigma' :: Sing k -> f k -> Sigma' f
 
 -- | c. In exercise 5, we wrote a 'filter' function for 'Vector'. Could we
 -- rewrite this with a sigma type, perhaps?
@@ -165,6 +194,10 @@ data Sigma (f :: Nat -> Type) where
 data Vector (a :: Type) (n :: Nat) where -- @n@ and @a@ flipped... Hmm, a clue!
   VNil  ::                    Vector a  'Z
   VCons :: a -> Vector a n -> Vector a ('S n)
+
+  -- Never did do that part of exercise 5...
+
+  -- N.B. This should be SIX here
 
 -- | d. Our sigma type is actually very useful. Let's imagine we're looking at
 -- a communication protocol over some network, and we label our packets as
@@ -190,17 +223,41 @@ data ServerData
 -- server data.
 
 data Communication (label :: Label) where
-  -- {{Fill this space with your academic excellence}}
+  CommClient :: ClientData -> Communication Client
+  CommServer :: ServerData -> Communication Server
 
 -- | b. Write a singleton for 'Label'.
+
+data SLabel (l :: Label) where
+  SClient :: SLabel 'Client
+  SServer :: SLabel 'Server
+
+type instance Sing (l :: Label) = SLabel l
 
 -- | c. Magically, we can now group together blocks of data with differing
 -- labels using @Sigma Communication@, and then pattern-match on the 'Sigma'
 -- constructor to find out which packet we have! Try it:
 
--- serverLog :: [Sigma Communication] -> [ServerData]
--- serverLog = error "YOU CAN DO IT"
+serverLog :: [Sigma' Communication] -> [ServerData]
+serverLog = foldr extract []
+  where
+  extract :: Sigma' Communication -> [ServerData] -> [ServerData]
+  extract (Sigma' SServer (CommServer d)) ds = d:ds
+  extract _ ds = ds
 
 -- | d. Arguably, in this case, the Sigma type is overkill; what could we have
 -- done, perhaps using methods from previous chapters, to "hide" the label
 -- until we pattern-matched?
+
+  -- The GADT would have been sufficient here e.g.
+
+data CommSimple where
+  CommClient' :: ClientData -> CommSimple
+  CommServer' :: ServerData -> CommSimple
+
+clientLog :: [CommSimple] -> [ServerData]
+clientLog = foldr extract []
+  where
+  extract (CommServer' d) ds = d:ds
+  extract _ ds = ds
+
