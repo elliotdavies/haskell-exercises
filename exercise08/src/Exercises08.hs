@@ -30,11 +30,8 @@ type family All' (c :: a -> Constraint) (xs :: [a]) :: Constraint where
 -- | b. Why does it have to be restricted to 'Constraint'? Can you make this
 -- more general? Why is this harder?
 
-type family All'' (c :: a -> b) (xs :: [a]) :: b where
-  All'' c '[] = ()
-  All'' c (x ': xs) = (c x, All'' c xs)
-
-  -- It wasn't any harder?
+  -- Making it more general means we couldn't use the tuple syntax, so we'd have to
+  -- return a type-level list of `b`, which would require a type-level map function
 
 
 
@@ -93,7 +90,7 @@ data a :=: b where
 -- | a. What do you think the kind of (:=:) is?
 
   -- Might have thought `k -> j -> Type` but GHC says `k -> k -> Type`
-  -- (with PolyKimds on), presumably because Refl requires two things
+  -- (with PolyKinds on), presumably because Refl requires two things
   -- the same
 
 -- | b. Does @PolyKinds@ make a difference to this kind?
@@ -104,9 +101,12 @@ data a :=: b where
 -- could possibly give this constructor? If not (hint: it's not), what more
 -- general kind could we give it, and how would we tell this to GHC?
 
-data (a :: k) :==: (b :: k) where
-  Refl' :: a :==: b
+{-
+data (a :: k) :==: (b :: j) where
+  Refl' :: a :==: a
 
+  -- N.B. Turn on TypeInType for this to work
+-}
 
 
 
@@ -170,7 +170,7 @@ example :: [Sigma Strings]
 example
   = [ Sigma         SZ   SNil
     , Sigma     (SS SZ)  ("hi" :> SNil)
-    , Sigma (SS (SS SZ)) ("hello" :> ("world" :> SNil)) -- The SNil is missing here
+    , Sigma (SS (SS SZ)) ("hello" :> ("world" :> SNil))
     ]
 -- @
 
@@ -197,7 +197,10 @@ data Vector (a :: Type) (n :: Nat) where -- @n@ and @a@ flipped... Hmm, a clue!
 
   -- Never did do that part of exercise 5...
 
-  -- N.B. This should be SIX here
+
+
+
+{- SIX -}
 
 -- | d. Our sigma type is actually very useful. Let's imagine we're looking at
 -- a communication protocol over some network, and we label our packets as
@@ -260,4 +263,3 @@ clientLog = foldr extract []
   where
   extract (CommServer' d) ds = d:ds
   extract _ ds = ds
-
