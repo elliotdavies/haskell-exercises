@@ -202,7 +202,7 @@ data Vector (a :: Type) (n :: Nat) where -- @n@ and @a@ flipped... Hmm, a clue!
 
 {- SIX -}
 
--- | d. Our sigma type is actually very useful. Let's imagine we're looking at
+-- | Our sigma type is actually very useful. Let's imagine we're looking at
 -- a communication protocol over some network, and we label our packets as
 -- @Client@ or @Server@:
 

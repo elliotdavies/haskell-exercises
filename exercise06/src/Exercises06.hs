@@ -105,8 +105,8 @@ type family All (xs :: [Bool]) :: Bool where
 
 {- FOUR -}
 
--- | a. Nat fun! Write a type-level '<=' function using the promoted 'Ordering'
--- type.
+-- | a. Nat fun! Write a type-level 'compare' function using the promoted
+-- 'Ordering' type.
 
 type family (a :: Nat) <= (b :: Nat) :: Bool where
   'Z    <=  b   = 'True
