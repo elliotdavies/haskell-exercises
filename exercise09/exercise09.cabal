@@ -9,5 +9,5 @@ library
                   , containers
   hs-source-dirs:   src
   exposed-modules:  MultiParamTypeClasses
-                  , Exercises
+                  , Exercises09
 

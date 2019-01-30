@@ -4,13 +4,14 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-module Exercises where
+module Exercises09 where
 
 import Data.Kind (Constraint, Type)
 import Data.Map (Map)
@@ -34,14 +35,25 @@ newtype YourInt = YourInt Int
 
 -- | a. Write the class!
 
--- class Newtype ... ... where
---   wrap   :: ...
---   unwrap :: ...
+class Newtype a b | b -> a where
+   wrap   :: a -> b
+   unwrap :: b -> a
 
 -- | b. Write instances for 'MyInt' and 'YourInt'.
 
+instance Newtype Int MyInt where
+  wrap             = MyInt
+  unwrap (MyInt i) = i
+
+instance Newtype Int YourInt where
+  wrap               = YourInt
+  unwrap (YourInt i) = i
+
 -- | c. Write a function that adds together two values of the same type,
 -- providing that the type is a newtype around some type with a 'Num' instance.
+
+addNewtypes :: (Num a, Newtype a b) => b -> b -> b
+addNewtypes x y = wrap (unwrap x + unwrap y)
 
 -- | d. We actually don't need @MultiParamTypeClasses@ for this if we use
 -- @TypeFamilies@. Look at the section on associated type instances here:
@@ -49,7 +61,11 @@ newtype YourInt = YourInt Int
 -- rewrite the class using an associated type, @Old@, to indicate the
 -- "unwrapped" type. What are the signatures of 'wrap' and 'unwrap'?
 
+class Newtype' new where
+  type Old new :: Type
 
+  wrap' :: Old new -> new
+  unwrap' :: new -> Old new
 
 
 
