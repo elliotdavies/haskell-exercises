@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
@@ -97,13 +98,29 @@ instance Traversable Identity where
 -- | a. Write that little dazzler! What error do we get from GHC? What
 -- extension does it suggest to fix this?
 
--- class Wanderable … … where
---   wander :: … => (a -> f b) -> t a -> f (t b)
+class (Functor t, Foldable t) => Wanderable c t  where
+  wander :: c f => (a -> f b) -> t a -> f (t b)
+
+  -- Need to AllowAmbiguousTypes
+
 
 -- | b. Write a 'Wanderable' instance for 'Identity'.
 
+instance Wanderable Functor Identity where
+  wander f (Identity x) = Identity <$> f x
+
+
 -- | c. Write 'Wanderable' instances for 'Maybe', '[]', and 'Proxy', noting the
 -- differing constraints required on the @f@ type.
+
+instance Wanderable Applicative Maybe where
+  wander f (Just x) = Just <$> f x
+  wander f Nothing  = pure Nothing
+
+instance Wanderable Applicative [] where
+  wander f = foldr go (pure [])
+    where
+      go x xs = (:) <$> f x <*> xs
 
 -- | d. Assuming you turned on the extension suggested by GHC, why does the
 -- following produce an error? Using only the extensions we've seen so far, how
@@ -113,6 +130,9 @@ instance Traversable Identity where
 -- problem!)
 
 -- test = wander Just [1, 2, 3]
+
+  -- There's nothing here to specify the `c f` constraint, but we could solve it
+  -- with type annotations (or proxies)
 
 
 
@@ -141,12 +161,26 @@ class (x :: Nat) < (y :: Nat) where
 
 -- | a. Write the instance that says @Z@ is smaller than @S n@ for /any/ @n@.
 
+instance Z < S n where
+  convert SZ = SmallerThanZ
+
 -- | b. Write an instance that says, if @x@ is smaller than @y@, then @S x@ is
 -- smaller than @S y@.
+
+instance (x < y) => S x < S y where
+  convert (SS sx) = SmallerThanS $ convert sx
 
 -- | c. Write the inverse function for the class definition and its two
 -- instances.
 
+class (x :: Nat) > (y :: Nat) where
+  convert' :: SmallerThan x -> SNat y
+
+instance S n > Z where
+  convert' SmallerThanZ = SZ
+
+instance (y > x) => S y > S x where
+  convert' (SmallerThanS sy) = SS (convert' sy)
 
 
 
