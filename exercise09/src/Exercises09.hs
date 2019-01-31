@@ -193,7 +193,17 @@ instance (y > x) => S y > S x where
 
 -- | a. Write that typeclass!
 
+class Equal a b where
+  -- Part c
+  fromE :: a -> b
+  toE   :: b -> a
+
 -- | b. Write that instance!
+
+instance Equal a a where
+  -- Part c
+  fromE = Prelude.id
+  toE   = Prelude.id
 
 -- | c. When GHC sees @x ~ y@, it can apply anything it knows about @x@ to @y@,
 -- and vice versa. We don't have the same luxury with /our/ class, however –
@@ -202,10 +212,10 @@ instance (y > x) => S y > S x where
 -- matter, though - we can just add two functions to our class to convert
 -- between the types. Write them, and don't overthink!
 
+
 -- | d. GHC can see @x ~ y@ and @y ~ z@, then deduce that @x ~ z@. Can we do
 -- the same? Perhaps with a second instance? Which pragma(s) do we need and
 -- why?
-
 
 
 
