@@ -309,26 +309,38 @@ instance TypeError (Text "No more HList left :-(") => Pluck x '[] where
 -- number of parameters. Typically, we define it with two parameters: @Here@
 -- and @There@. These tell us which "position" our value inhabits:
 
--- variants :: [Variant '[Bool, Int, String]]
--- variants = [ Here True, There (Here 3), There (There (Here "hello")) ]
+variants :: [Variant '[Bool, Int, String]]
+variants = [ Here True, There (Here 3), There (There (Here "hello")) ]
 
 -- | a. Write the 'Variant' type to make the above example compile.
 
 data Variant (xs :: [Type]) where
-  -- Here  :: ...
-  -- There :: ...
+  Here  :: x -> Variant xs
+  There :: Variant xs -> Variant xs
 
 -- | b. The example is /fine/, but there's a lot of 'Here'/'There' boilerplate.
 -- Wouldn't it be nice if we had a function that takes a type, and then returns
 -- you the value in the right position? Write it! If it works, the following
 -- should compile: @[inject True, inject (3 :: Int), inject "hello"]@.
 
--- class Inject … … where
---   inject :: …
+eg :: [Variant '[Bool, Int, String]]
+eg = [inject True, inject (3 :: Int), inject "hello"]
+
+class Inject (x :: Type) (xs :: [Type]) where
+  inject :: x -> Variant xs
+
+instance {-# OVERLAPPING #-} Inject x (x ': xs) where
+  inject x = Here x
+
+instance Inject y (x ': xs) where
+  inject y = There $ inject y
 
 -- | c. Why did we have to annotate the 3? This is getting frustrating... do
 -- you have any (not necessarily good) ideas on how we /could/ solve it?
 
+  -- Same problem as previously: could be any instance of Num, not necessarily
+  -- an Int. Type applications wouldn't be much neater here... Maybe we could
+  -- somehow write an instance of Inject for Num?
 
 
 
@@ -365,7 +377,7 @@ class Coat (a :: Weather) (b :: Temperature) where
 -- that /everyone/ knows, so they should be safe enough!
 
 -- No one needs a coat when it's sunny!
-instance Coat Sunny b where doINeedACoat _ _ = False
+instance {-# INCOHERENT #-} Coat Sunny b where doINeedACoat _ _ = False
 
 -- It's freezing out there - put a coat on!
 instance Coat a Cold where doINeedACoat _ _ = True
@@ -373,8 +385,8 @@ instance Coat a Cold where doINeedACoat _ _ = True
 -- | Several months pass, and your app is used by billions of people around the
 -- world. All of a sudden, your engineers encounter a strange error:
 
--- test :: Bool
--- test = doINeedACoat SSunny SCold
+test :: Bool
+test = doINeedACoat SSunny SCold
 
 -- | Clearly, our data scientists never thought of a day that could
 -- simultaneously be sunny /and/ cold. After months of board meetings, a
@@ -385,12 +397,18 @@ instance Coat a Cold where doINeedACoat _ _ = True
 -- to prioritise the second rule. Why didn't that work? Which step of the
 -- instance resolution process is causing the failure?
 
+  -- Step 5? The instances are of equal specificity
+
 -- | b. Consulting the instance resolution steps, which pragma /could/ we use
 -- to solve this problem? Fix the problem accordingly.
+
+  -- INCOHERENT, because it causes that instance to be discarded
 
 -- | c. In spite of its scary name, can we verify that our use of it /is/
 -- undeserving of the first two letters of its name?
 
+  -- In this case it's fine because only one instance is INCOHERENT so resolution
+  -- is deterministic
 
 
 
@@ -405,10 +423,15 @@ instance Coat a Cold where doINeedACoat _ _ = True
 
 -- | a. Are these in conflict? When?
 
+  -- Yes, because Char is Showable and [Char] ~ String, so they overlap
+
 -- | b. Let's say we want to define an instance for any @f a@ where the @f@ is
 -- 'Foldable', by converting our type to a list and then showing that. Is there
 -- a pragma we can add to the first 'Show' instance above so as to preserve
 -- current behaviour? Would we need /more/ pragmas than this?
+
+  -- Currently the first instance is treated as less specific because strings
+  -- aren't printed as ['a','b'], etc, so OVERLAPPABLE presumably would do it
 
 -- | c. Somewhat confusingly, we've now introduced incoherence: depending on
 -- whether or not I've imported this module, 'show' will behave in different
@@ -416,7 +439,8 @@ instance Coat a Cold where doINeedACoat _ _ = True
 -- here, but they are missing the bigger issue; what have we done? How could we
 -- have avoided it?
 
-
+  -- Would `Show (f a)` be an orphan instance? In which case we shouldn't
+  -- have defined it so, and we should have used a newtype instead
 
 
 
@@ -462,11 +486,29 @@ class CommentCache where
 -- | a. What are those three ways? Could we turn them into parameters to a
 -- typeclass? Do it!
 
+class Cache (item :: Type) (id :: Type) (result :: Type -> Type) where
+  store :: item -> Map id item -> Map id item
+  load  :: Map id item -> id -> result item
+
 -- | b. Write instances for 'User' and 'Comment', and feel free to implement
 -- them as 'undefined' or 'error'. Now, before uncommenting the following, can
 -- you see what will go wrong?
 
+instance Cache User UserId (Either String) where
+  store = undefined
+  load  = undefined
+
+instance Cache Comment CommentId Maybe where
+  store = undefined
+  load  = undefined
+
 -- oops cache = load cache (UserId (123 :: Int))
+
+  -- I would have said the Cache class doesn't specify the relationship between the
+  -- item and id types, so UserId here isn't enough to pick an instance...
+  -- but actually this compiles fine for me
 
 -- | c. Do we know of a sneaky trick that would allow us to fix this? Possibly
 -- involving constraints? Try!
+
+  -- TODO when I figure out what the problem actually was
