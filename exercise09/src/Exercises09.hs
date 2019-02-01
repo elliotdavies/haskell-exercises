@@ -12,12 +12,13 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Exercises09 where
 
 import Data.Kind (Constraint, Type)
 import Data.Map (Map)
 import Data.Proxy (Proxy (..))
-
+import GHC.TypeLits (TypeError, ErrorMessage(..))
 
 
 
@@ -217,6 +218,8 @@ instance Equal a a where
 -- the same? Perhaps with a second instance? Which pragma(s) do we need and
 -- why?
 
+instance (Equal a b, Equal b c) => Equal a c
+  -- ???
 
 
 
@@ -227,6 +230,8 @@ instance Equal a a where
 data HList (xs :: [Type]) where
   -- In fact, you know what? You can definitely write an HList by now – I'll
   -- just put my feet up and wait here until you're done!
+  HNil  :: HList '[]
+  HCons :: x -> HList xs -> HList (x ': xs)
 
 -- | We know we can use type families to append type-level lists...
 
@@ -244,12 +249,20 @@ class Appendable (ls :: [Type]) (rs :: [Type]) where
 
 -- | a. Write an instance for an empty left-hand HList.
 
+instance Appendable '[] rs where
+  append HNil rs = rs
+
 -- | b. Write an instance for a non-empty left-hand list. You "may" need a
 -- constraint on this instance.
+
+instance Appendable ls rs => Appendable (l ': ls) rs where
+  append (HCons l ls) rs = HCons l $ append ls rs
 
 -- | c. What does this tell us about the functionality that type classes can
 -- "add" to type families?
 
+  -- They don't add anything at the type level, but they can help implement
+  -- the logic at the value level?
 
 
 
@@ -263,7 +276,13 @@ class Pluck (x :: Type) (xs :: [Type]) where
 
 -- | a. Write an instance for when the head of @xs@ is equal to @x@.
 
+instance {-# OVERLAPPING #-} Pluck x (x ': xs) where
+  pluck (HCons x xs) = x
+
 -- | b. Write an instance for when the head /isn't/ equal to @x@.
+
+instance Pluck x ys => Pluck x (y ': ys) where
+  pluck (HCons y ys) = pluck ys
 
 -- | c. Using [the documentation for user-defined type
 -- errors](http://hackage.haskell.org/package/base-4.11.1.0/docs/GHC-TypeLits.html#g:4)
@@ -271,13 +290,16 @@ class Pluck (x :: Type) (xs :: [Type]) where
 -- through the entire @xs@ list (or started with an empty @HList@) and haven't
 -- found the type you're trying to find.
 
+instance TypeError (Text "No more HList left :-(") => Pluck x '[] where
+  pluck = error "oops"
+
 -- | d. Making any changes required for your particular HList syntax, why
 -- doesn't the following work? Hint: try running @:t 3@ in GHCi.
 
--- mystery :: Int
--- mystery = pluck (HCons 3 HNil)
+--mystery :: Int
+--mystery = pluck (HCons 3 HNil)
 
-
+  -- Can't be certain 3 is an Int here - could be some other Num instance
 
 
 
