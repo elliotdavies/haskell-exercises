@@ -323,8 +323,8 @@ variants = [ Here True, There (Here 3), There (There (Here "hello")) ]
 -- | a. Write the 'Variant' type to make the above example compile.
 
 data Variant (xs :: [Type]) where
-  Here  :: x -> Variant xs
-  There :: Variant xs -> Variant xs
+  Here  :: x -> Variant (x ': xs)
+  There :: Variant xs -> Variant (y ': xs)
 
 -- | b. The example is /fine/, but there's a lot of 'Here'/'There' boilerplate.
 -- Wouldn't it be nice if we had a function that takes a type, and then returns
@@ -340,8 +340,8 @@ class Inject (x :: Type) (xs :: [Type]) where
 instance {-# OVERLAPPING #-} Inject x (x ': xs) where
   inject x = Here x
 
-instance Inject y (x ': xs) where
-  inject y = There $ inject y
+instance Inject x xs => Inject x (y ': xs) where
+  inject x = There $ inject x
 
 -- | c. Why did we have to annotate the 3? This is getting frustrating... do
 -- you have any (not necessarily good) ideas on how we /could/ solve it?
