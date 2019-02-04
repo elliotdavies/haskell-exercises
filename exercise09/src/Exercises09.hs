@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -218,8 +219,15 @@ instance Equal a a where
 -- the same? Perhaps with a second instance? Which pragma(s) do we need and
 -- why?
 
-instance (Equal a b, Equal b c) => Equal a c
-  -- ???
+instance {-# INCOHERENT #-} (Equal a b, Equal b c) => Equal a c where
+  fromE a = fromE $ (fromE a :: b)
+  toE c   = toE $ (toE c :: b)
+
+eg2 :: Equal Int String => ()
+eg2 = ()
+
+  -- We can do this when they are the same, but when they're not GHC will error
+
 
 
 
@@ -261,8 +269,8 @@ instance Appendable ls rs => Appendable (l ': ls) rs where
 -- | c. What does this tell us about the functionality that type classes can
 -- "add" to type families?
 
-  -- They don't add anything at the type level, but they can help implement
-  -- the logic at the value level?
+  -- Type families are functions on types, but classes allow us to specify
+  -- relations between types and (value level) functions to accompany them
 
 
 
@@ -502,13 +510,12 @@ instance Cache Comment CommentId Maybe where
   store = undefined
   load  = undefined
 
--- oops cache = load cache (UserId (123 :: Int))
+oops cache = load cache (UserId (123 :: Int))
 
-  -- I would have said the Cache class doesn't specify the relationship between the
-  -- item and id types, so UserId here isn't enough to pick an instance...
-  -- but actually this compiles fine for me
+  -- The Cache class doesn't specify the relationship between the
+  -- item and id types, so UserId here isn't enough to pick an instance
 
 -- | c. Do we know of a sneaky trick that would allow us to fix this? Possibly
 -- involving constraints? Try!
 
-  -- TODO when I figure out what the problem actually was
+  -- Functional Dependencies _or_ equality constraints
